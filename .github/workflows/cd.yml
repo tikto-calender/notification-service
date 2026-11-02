@@ -1,0 +1,109 @@
+name: Build, scan and push image
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: cd-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'ap-southeast-2' }}
+  ECR_REPOSITORY: tikto/notification
+
+jobs:
+  publish:
+    name: Quality gate and publish immutable image
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7.1.0
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install quality tools
+        run: python -m pip install --requirement requirements-dev.txt
+
+      - name: Check formatting
+        run: ruff format --check .
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Run unit tests with coverage
+        run: |
+          coverage run --source=main -m unittest discover --start-directory test --verbose
+          coverage xml
+
+      - name: Compile production source
+        run: python -m py_compile main.py
+
+      - name: SonarQube analysis
+        uses: SonarSource/sonarqube-scan-action@v8.4.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+
+      - name: Create immutable image tag
+        id: image
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME}-${GITHUB_SHA::12}-${GITHUB_RUN_ID}"
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+          echo "local=${ECR_REPOSITORY}:${tag}" >> "${GITHUB_OUTPUT}"
+
+      - name: Build container image
+        run: docker build --tag "${{ steps.image.outputs.local }}" .
+
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ steps.image.outputs.local }}
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Configure AWS credentials with GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_BUILD_ROLE_ARN }}
+          role-session-name: notification-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2.1.7
+
+      - name: Push immutable image
+        id: push
+        shell: bash
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          IMAGE_TAG: ${{ steps.image.outputs.tag }}
+          LOCAL_IMAGE: ${{ steps.image.outputs.local }}
+        run: |
+          remote_image="${REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+          docker tag "${LOCAL_IMAGE}" "${remote_image}"
+          docker push "${remote_image}"
+          echo "image=${remote_image}" >> "${GITHUB_OUTPUT}"
+
+      - name: Publish summary
+        run: echo "Published \`${{ steps.push.outputs.image }}\`" >> "${GITHUB_STEP_SUMMARY}"
