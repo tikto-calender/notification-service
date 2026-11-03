@@ -26,6 +26,7 @@ NOTIFICATION_ACCOUNT_NAME=@tikto_bot
 - `GET /health` — kiểm tra service, version và tài khoản notification
 - `GET /notifications`
 - `POST /notifications`
+- `POST /notifications/test` — gửi ngay notification kiểm tra qua kênh `LOG`
 - `DELETE /notifications/:id` — đánh dấu `CANCELED`
 
 Ví dụ tạo notification:

@@ -49,18 +49,23 @@ jobs:
           mapfile -t pr < <(
             gh pr view "${pr_number}" \
               --repo "${GITHUB_REPOSITORY}" \
-              --json baseRefName,headRefOid,isCrossRepository,isDraft,state \
-              --jq '.baseRefName, .headRefOid, .isCrossRepository, .isDraft, .state'
+              --json author,baseRefName,headRefOid,isCrossRepository,isDraft,state \
+              --jq '.author.login, .baseRefName, .headRefOid, .isCrossRepository, .isDraft, .state'
           )
 
-          base_ref="${pr[0]:-}"
-          current_head="${pr[1]:-}"
-          cross_repository="${pr[2]:-true}"
-          draft="${pr[3]:-true}"
-          state="${pr[4]:-UNKNOWN}"
+          author="${pr[0]:-}"
+          base_ref="${pr[1]:-}"
+          current_head="${pr[2]:-}"
+          cross_repository="${pr[3]:-true}"
+          draft="${pr[4]:-true}"
+          state="${pr[5]:-UNKNOWN}"
 
           if [[ "${base_ref}" != "dev" ]]; then
             echo "PR does not target dev."
+            exit 0
+          fi
+          if [[ "${author}" == "dependabot[bot]" ]]; then
+            echo "Dependabot PR is handled by the dedicated update policy workflow."
             exit 0
           fi
           if [[ "${cross_repository}" == "true" || "${draft}" == "true" || "${state}" != "OPEN" ]]; then
