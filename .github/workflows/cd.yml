@@ -18,25 +18,10 @@ jobs:
   quality:
     name: Format, lint, test and compile
     uses: tikto-calender/reusable-workflow/.github/workflows/python-ci.yml@main
-    with:
-      coverage-artifact-name: notification-coverage
-
-  sonar:
-    name: SonarQube
-    needs: quality
-    uses: tikto-calender/reusable-workflow/.github/workflows/sonarqube.yml@main
-    with:
-      sonar-host-url: ${{ vars.SONAR_HOST_URL }}
-      coverage-artifact-name: notification-coverage
-      coverage-download-path: "."
-    secrets:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   publish:
     name: Build, scan and publish immutable image
-    needs:
-      - quality
-      - sonar
+    needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 35
     permissions:

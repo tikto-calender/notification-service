@@ -42,11 +42,9 @@ Ví dụ tạo notification:
 
 ## CI/CD
 
-Pull request vào `dev` hoặc `main` chạy format, lint, unit test, coverage và SonarQube. Push vào hai branch này chạy lại quality gate, build container, dùng Trivy chặn lỗ hổng HIGH/CRITICAL có bản sửa, sau đó push image immutable lên Amazon ECR.
+Pull request vào `dev` hoặc `main` chạy format, lint, unit test và coverage. Push vào hai branch này chạy lại quality gate, build container, dùng Trivy chặn lỗ hổng HIGH/CRITICAL có bản sửa, sau đó push image immutable lên Amazon ECR. SonarQube được tự động phân tích bên ngoài GitHub Actions workflow.
 
 Cấu hình các GitHub organization/repository settings:
 
 - Variable `AWS_BUILD_ROLE_ARN`: Terraform output `github_build_role_arn` của shared stack.
 - Variable `AWS_REGION`: `ap-southeast-2`.
-- Variable `SONAR_HOST_URL`: URL SonarQube server.
-- Secret `SONAR_TOKEN`: project analysis token.
