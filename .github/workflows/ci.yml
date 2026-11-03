@@ -4,17 +4,58 @@ on:
   pull_request:
     branches:
       - dev
-      - main
   workflow_dispatch:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Detect source changes
+    runs-on: ubuntu-latest
+    outputs:
+      source: ${{ steps.filter.outputs.source }}
+    steps:
+      - name: Detect source changes
+        id: filter
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            echo "source=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          mapfile -t files < <(
+            gh api --paginate \
+              "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files" \
+              --jq '.[].filename'
+          )
+
+          source=false
+          for file in "${files[@]}"; do
+            case "${file}" in
+              main.py|test/*|requirements*.txt|pyproject.toml|Dockerfile|.github/workflows/ci.yml)
+                source=true
+                break
+                ;;
+            esac
+          done
+
+          echo "source=${source}" >> "${GITHUB_OUTPUT}"
+          echo "Source changes: ${source}" >> "${GITHUB_STEP_SUMMARY}"
+
   quality:
     name: Format, lint, test and compile
+    needs: changes
+    if: needs.changes.outputs.source == 'true'
     uses: tikto-calender/reusable-workflow/.github/workflows/python-ci.yml@main
