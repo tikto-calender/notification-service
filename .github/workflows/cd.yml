@@ -1,17 +1,22 @@
-name: Build, scan and push image
+name: Publish development image
 
 on:
   push:
     branches:
       - dev
-      - main
-  workflow_dispatch:
+    paths:
+      - main.py
+      - test/**
+      - requirements*.txt
+      - pyproject.toml
+      - Dockerfile
+      - .github/workflows/cd.yml
 
 permissions:
   contents: read
 
 concurrency:
-  group: cd-${{ github.workflow }}-${{ github.ref }}
+  group: publish-dev
   cancel-in-progress: false
 
 jobs:
@@ -41,7 +46,7 @@ jobs:
         id: image
         shell: bash
         run: |
-          tag="${GITHUB_REF_NAME}-${GITHUB_SHA::12}-${GITHUB_RUN_ID}"
+          tag="dev-${GITHUB_SHA::12}"
           echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
           echo "local=${ECR_REPOSITORY}:${tag}" >> "${GITHUB_OUTPUT}"
 
@@ -78,7 +83,13 @@ jobs:
         run: |
           remote_image="${REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
           docker tag "${LOCAL_IMAGE}" "${remote_image}"
-          docker push "${remote_image}"
+          if aws ecr describe-images \
+            --repository-name "${ECR_REPOSITORY}" \
+            --image-ids "imageTag=${IMAGE_TAG}" >/dev/null 2>&1; then
+            echo "Image already exists; keeping the immutable tag."
+          else
+            docker push "${remote_image}"
+          fi
           echo "image=${remote_image}" >> "${GITHUB_OUTPUT}"
 
       - name: Publish summary
