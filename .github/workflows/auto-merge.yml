@@ -8,8 +8,7 @@ on:
       - completed
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   group: auto-merge-${{ github.event.workflow_run.id }}
@@ -24,13 +23,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.AUTO_MERGE_TOKEN }}
       RUN_ID: ${{ github.event.workflow_run.id }}
     steps:
       - name: Validate PR and enable squash auto-merge
         shell: bash
         run: |
           set -euo pipefail
+
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "AUTO_MERGE_TOKEN is not configured. Merge the PR manually so Dev CD receives the push event."
+            exit 0
+          fi
 
           pr_number=$(
             gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" \
