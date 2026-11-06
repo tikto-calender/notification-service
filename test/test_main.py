@@ -88,6 +88,28 @@ class NotificationServiceTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(canceled["data"]["status"], "CANCELED")
 
+    def test_notification_test_is_sent_immediately_and_stored(self) -> None:
+        status, created = self.request(
+            "/notifications/test",
+            method="POST",
+            body={},
+        )
+
+        self.assertEqual(status, 201)
+        notification = created["data"]
+        self.assertEqual(notification["targetType"], "SYSTEM")
+        self.assertEqual(notification["targetId"], "manual-test")
+        self.assertEqual(notification["channel"], "LOG")
+        self.assertEqual(notification["message"], "TikTo test notification")
+        self.assertEqual(notification["status"], "SENT")
+        self.assertEqual(notification["scheduledAt"], notification["sentAt"])
+
+        status, listed = self.request("/notifications")
+
+        self.assertEqual(status, 200)
+        self.assertEqual(len(listed["data"]), 1)
+        self.assertEqual(listed["data"][0]["id"], notification["id"])
+
 
 if __name__ == "__main__":
     unittest.main()
