@@ -8,7 +8,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 COPY main.py ./
 
-RUN useradd --create-home --uid 10001 appuser
+RUN python -m pip uninstall --yes setuptools wheel pip \
+    && useradd --create-home --uid 10001 appuser
 USER appuser
 
 EXPOSE 8000
