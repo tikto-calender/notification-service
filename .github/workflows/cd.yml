@@ -14,11 +14,11 @@ concurrency:
 
 jobs:
   quality:
-    uses: tikto-calender/reusable-workflow/.github/workflows/python-ci.yml@bdf76770e0346eee74be21ef82919ed7aeefdb1a
+    uses: tikto-calender/reusable-workflow/.github/workflows/ci-python.yml@main
 
   publish:
     needs: quality
-    uses: tikto-calender/reusable-workflow/.github/workflows/ghcr-dev.yml@bdf76770e0346eee74be21ef82919ed7aeefdb1a
+    uses: tikto-calender/reusable-workflow/.github/workflows/cd-dev.yml@main
     with:
       component: notification
       gitops-repository: ${{ vars.GITOPS_REPOSITORY || 'tikto-calender/manifest' }}

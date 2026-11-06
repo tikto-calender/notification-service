@@ -58,4 +58,4 @@ jobs:
     name: Format, lint, test and compile
     needs: changes
     if: needs.changes.outputs.source == 'true'
-    uses: tikto-calender/reusable-workflow/.github/workflows/python-ci.yml@bdf76770e0346eee74be21ef82919ed7aeefdb1a
+    uses: tikto-calender/reusable-workflow/.github/workflows/ci-python.yml@main
