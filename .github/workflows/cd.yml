@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   deploy:
-    uses: tikto-calender/reusable-workflow/.github/workflows/cd-dev.yml@fb91f225096ec3df8fc0beff53662e6b87414ccc
+    uses: tikto-calender/reusable-workflow/.github/workflows/cd-dev.yml@a86d87a127e64901a8a2800f4362a95d9d76654b
     with:
       component: notification
       gitops-repository: ${{ vars.GITOPS_REPOSITORY || 'tikto-calender/manifest' }}
