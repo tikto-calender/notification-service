@@ -36,7 +36,7 @@ concurrency:
 
 jobs:
   quality:
-    uses: tikto-calender/reusable-workflow/.github/workflows/ci-python.yml@dbdf77356c14e76c1320f334cd0c18fcff47b659
+    uses: tikto-calender/reusable-workflow/.github/workflows/ci-python.yml@main
     with:
       dependency-file: requirements*.txt
       install-command: |
