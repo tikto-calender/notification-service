@@ -1,162 +1,27 @@
-name: Release production
-
+name: Finalize release
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: Semantic version tag, for example v1.2.3
+        description: Version already verified on Production, for example v1.2.3.
         required: true
         type: string
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
+  packages: read
 
 concurrency:
-  group: release-production
+  group: finalize-release
   cancel-in-progress: false
 
 jobs:
-  validate:
-    name: Validate release
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Require dev and a new semantic version
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ inputs.version }}
-        run: |
-          set -euo pipefail
-
-          if [[ "${GITHUB_REF}" != "refs/heads/dev" ]]; then
-            echo "::error::Production releases must be started from the dev branch."
-            exit 1
-          fi
-          if [[ ! "${VERSION}" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
-            echo "::error::Version must use the vMAJOR.MINOR.PATCH format."
-            exit 1
-          fi
-          if gh release view "${VERSION}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            echo "::error::Release ${VERSION} already exists."
-            exit 1
-          fi
-          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${VERSION}" >/dev/null 2>&1; then
-            echo "::error::Tag ${VERSION} already exists."
-            exit 1
-          fi
-
-  quality:
-    name: Verify release source
-    needs: validate
-    uses: tikto-calender/reusable-workflow/.github/workflows/python-ci.yml@main
-
-  release:
-    name: Promote image to production version
-    needs:
-      - validate
-      - quality
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
-    environment:
-      name: prod
-    permissions:
-      contents: write
-      id-token: write
-    env:
-      AWS_REGION: ${{ vars.AWS_REGION || 'ap-southeast-2' }}
-      ECR_REPOSITORY: tikto/notification
-      VERSION: ${{ inputs.version }}
-    steps:
-      - name: Check out release source
-        uses: actions/checkout@v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Configure AWS credentials with GitHub OIDC
-        uses: aws-actions/configure-aws-credentials@v6.3.0
-        with:
-          role-to-assume: ${{ vars.AWS_BUILD_ROLE_ARN }}
-          role-session-name: notification-prod-${{ github.run_id }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Log in to Amazon ECR
-        id: ecr
-        uses: aws-actions/amazon-ecr-login@v2.1.7
-
-      - name: Pull development image
-        id: image
-        shell: bash
-        env:
-          REGISTRY: ${{ steps.ecr.outputs.registry }}
-        run: |
-          set -euo pipefail
-          source_sha=$(
-            git log -1 --format=%H -- \
-              main.py test requirements-dev.txt pyproject.toml Dockerfile \
-              .github/workflows/cd.yml
-          )
-          source_tag="dev-${source_sha::12}"
-          source_image="${REGISTRY}/${ECR_REPOSITORY}:${source_tag}"
-          release_image="${REGISTRY}/${ECR_REPOSITORY}:${VERSION}"
-
-          source_digest=$(
-            aws ecr describe-images \
-              --repository-name "${ECR_REPOSITORY}" \
-              --image-ids "imageTag=${source_tag}" \
-              --query 'imageDetails[0].imageDigest' \
-              --output text
-          )
-          release_digest=$(
-            aws ecr describe-images \
-              --repository-name "${ECR_REPOSITORY}" \
-              --image-ids "imageTag=${VERSION}" \
-              --query 'imageDetails[0].imageDigest' \
-              --output text 2>/dev/null || true
-          )
-
-          if [[ -n "${release_digest}" && "${release_digest}" != "None" && "${release_digest}" != "${source_digest}" ]]; then
-            echo "::error::Version ${VERSION} already points to a different image."
-            exit 1
-          fi
-
-          docker pull "${source_image}"
-          docker tag "${source_image}" "${release_image}"
-
-          echo "release=${release_image}" >> "${GITHUB_OUTPUT}"
-          echo "source-sha=${source_sha}" >> "${GITHUB_OUTPUT}"
-          if [[ "${release_digest}" == "${source_digest}" ]]; then
-            echo "exists=true" >> "${GITHUB_OUTPUT}"
-          else
-            echo "exists=false" >> "${GITHUB_OUTPUT}"
-          fi
-
-      - name: Scan release image with Trivy
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: ${{ steps.image.outputs.release }}
-          format: table
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: "1"
-
-      - name: Push immutable release image
-        if: steps.image.outputs.exists != 'true'
-        run: docker push "${{ steps.image.outputs.release }}"
-
-      - name: Create immutable release
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create "${VERSION}" \
-            --repo "${GITHUB_REPOSITORY}" \
-            --target "${GITHUB_SHA}" \
-            --title "${VERSION}" \
-            --generate-notes
-
-      - name: Publish summary
-        run: |
-          echo "Released \`${{ steps.image.outputs.release }}\` to production." >> "${GITHUB_STEP_SUMMARY}"
-          echo "Source image commit: \`${{ steps.image.outputs.source-sha }}\`" >> "${GITHUB_STEP_SUMMARY}"
+  finalize:
+    uses: tikto-calender/reusable-workflow/.github/workflows/finalize-release.yml@dbdf77356c14e76c1320f334cd0c18fcff47b659
+    with:
+      component: notification
+      version: ${{ inputs.version }}
+      gitops-repository: ${{ vars.GITOPS_REPOSITORY || 'tikto-calender/manifest' }}
+    secrets:
+      MANIFEST_READ_TOKEN: ${{ secrets.MANIFEST_READ_TOKEN || secrets.GITOPS_TOKEN }}
