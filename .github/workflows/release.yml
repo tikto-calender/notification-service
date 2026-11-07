@@ -10,6 +10,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  packages: read
 
 concurrency:
   group: finalize-release
@@ -17,7 +18,7 @@ concurrency:
 
 jobs:
   finalize:
-    uses: tikto-calender/reusable-workflow/.github/workflows/finalize-release.yml@fb91f225096ec3df8fc0beff53662e6b87414ccc
+    uses: tikto-calender/reusable-workflow/.github/workflows/finalize-release.yml@a86d87a127e64901a8a2800f4362a95d9d76654b
     with:
       component: notification
       version: ${{ inputs.version }}

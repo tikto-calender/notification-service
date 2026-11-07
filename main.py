@@ -12,7 +12,7 @@ from uuid import uuid4
 
 NOTIFICATIONS: dict[str, dict] = {}
 NOTIFICATIONS_LOCK = Lock()
-SERVICE_VERSION = "1.1.3"
+SERVICE_VERSION = "1.1.4"
 
 
 def clean(value: object, maximum: int = 500) -> str:
