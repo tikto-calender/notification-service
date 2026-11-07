@@ -18,10 +18,10 @@ concurrency:
 
 jobs:
   finalize:
-    uses: tikto-calender/reusable-workflow/.github/workflows/finalize-release.yml@a86d87a127e64901a8a2800f4362a95d9d76654b
+    uses: tikto-calender/reusable-workflow/.github/workflows/finalize-release.yml@dbdf77356c14e76c1320f334cd0c18fcff47b659
     with:
       component: notification
       version: ${{ inputs.version }}
       gitops-repository: ${{ vars.GITOPS_REPOSITORY || 'tikto-calender/manifest' }}
     secrets:
-      MANIFEST_READ_TOKEN: ${{ secrets.MANIFEST_READ_TOKEN }}
+      MANIFEST_READ_TOKEN: ${{ secrets.MANIFEST_READ_TOKEN || secrets.GITOPS_TOKEN }}

@@ -1,5 +1,6 @@
 name: Deploy Dev
 on:
+  workflow_dispatch:
   push:
     branches: [dev]
 
@@ -9,7 +10,7 @@ permissions:
 
 jobs:
   deploy:
-    uses: tikto-calender/reusable-workflow/.github/workflows/cd-dev.yml@a86d87a127e64901a8a2800f4362a95d9d76654b
+    uses: tikto-calender/reusable-workflow/.github/workflows/cd-dev.yml@dbdf77356c14e76c1320f334cd0c18fcff47b659
     with:
       component: notification
       gitops-repository: ${{ vars.GITOPS_REPOSITORY || 'tikto-calender/manifest' }}
