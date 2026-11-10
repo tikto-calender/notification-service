@@ -1,28 +1,47 @@
 name: CI
-
 on:
   pull_request:
-    branches:
-      - dev
-      - main
+    branches: [dev]
     paths:
       - ".github/workflows/**"
+      - "Dockerfile"
+      - ".dockerignore"
+      - ".env.example"
+      - "sonar-project.properties"
       - "test/**"
-      - main.py
-      - Dockerfile
-      - pyproject.toml
-      - requirements-dev.txt
-      - sonar-project.properties
-  workflow_dispatch:
+      - "main.py"
+      - "pyproject.toml"
+      - "requirements*.txt"
+      - "uv.lock"
+  push:
+    branches: ["feat/**"]
+    paths:
+      - ".github/workflows/**"
+      - "Dockerfile"
+      - ".dockerignore"
+      - ".env.example"
+      - "sonar-project.properties"
+      - "test/**"
+      - "main.py"
+      - "pyproject.toml"
+      - "requirements*.txt"
+      - "uv.lock"
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   quality:
-    name: Format, lint, test and compile
     uses: tikto-calender/reusable-workflow/.github/workflows/ci-python.yml@main
+    with:
+      dependency-file: requirements*.txt
+      install-command: |
+        if [[ -f requirements.txt ]]; then
+          python -m pip install -r requirements.txt coverage==7.17.0 ruff==0.17.3
+        else
+          python -m pip install -r requirements-dev.txt
+        fi

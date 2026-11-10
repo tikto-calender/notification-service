@@ -1,25 +1,27 @@
-name: Promote to production
+name: Finalize release
 on:
   workflow_dispatch:
     inputs:
-      digest:
-        description: "Digest confirmed running and Healthy in Dev (sha256:...)"
+      version:
+        description: Version already verified on Production, for example v1.2.3.
         required: true
         type: string
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
+  packages: read
 
 concurrency:
-  group: gitops-prod
+  group: finalize-release
   cancel-in-progress: false
 
 jobs:
-  promote:
-    uses: tikto-calender/reusable-workflow/.github/workflows/gitops-promote.yml@bdf76770e0346eee74be21ef82919ed7aeefdb1a
+  finalize:
+    uses: tikto-calender/reusable-workflow/.github/workflows/finalize-release.yml@main
     with:
       component: notification
+      version: ${{ inputs.version }}
       gitops-repository: ${{ vars.GITOPS_REPOSITORY || 'tikto-calender/manifest' }}
-      digest: ${{ inputs.digest }}
     secrets:
-      GITOPS_TOKEN: ${{ secrets.GITOPS_TOKEN }}
+      MANIFEST_READ_TOKEN: ${{ secrets.MANIFEST_READ_TOKEN }}

@@ -1,57 +1,101 @@
-# TikTo Notification Service
+# TikTo Telegram Notification Service
 
-Notification service độc lập, hiện dùng Python standard library và lưu dữ liệu trong memory. Service không truy cập database hoặc cần AWS credential.
+Dedicated microservice built with **FastAPI (Python 3.11)** for delivering reminder notifications to **Telegram**.
 
-## Chạy local
+Designed as a lightweight, decoupled notification worker for the TikTo backend:
+1. **Health Check (`GET /health`)**: Queried by the backend to monitor uptime, service status, and Telegram connection state.
+2. **Send Notifications (`POST /notifications`)**: Receives Task or Event payloads from the backend and dispatches formatted alerts directly to Telegram.
+3. **Send Test Alerts (`POST /notifications/test`)**: Sends an immediate test message to verify the Telegram bot credentials.
 
-Yêu cầu Python 3.11 trở lên.
+---
 
-```bash
-python main.py
-```
+## 🚀 Interactive API Documentation (Swagger UI)
 
-Service chạy tại `http://localhost:8000` và mặc định lưu notification trong memory.
+FastAPI automatically generates an interactive API playground:
+👉 **`http://localhost:8000/docs`** (Swagger UI) or **`http://localhost:8000/redoc`**
 
-Để health check nhận diện tài khoản notification, cấu hình hai biến môi trường không chứa secret:
+Use the **"Try it out"** button on any endpoint to send live notifications or test requests directly from your browser without needing curl or Postman.
 
-```text
+---
+
+## ⚙️ Environment Configuration (`.env`)
+
+Configure the service by creating or updating `.env` in the `Notification-service` folder:
+
+```dotenv
+PORT=8000
+
+# 1. Obtain your Bot Token from @BotFather on Telegram
+TELEGRAM_BOT_TOKEN=123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ
+
+# 2. Obtain your Chat ID (user ID or group ID, e.g. via @userinfobot)
+TELEGRAM_CHAT_ID=-1001234567890
+
+# Provider metadata reported to the backend /health probe
 NOTIFICATION_PROVIDER=telegram
 NOTIFICATION_ACCOUNT_NAME=@tikto_bot
 ```
 
-`GET /health` trả `account.connected: true` khi cả provider và account name đã được cấu hình. Token, password và secret không được trả về API.
+---
 
-## API
+## 🛠️ Local Development
 
-- `GET /health` — kiểm tra service, version và tài khoản notification
-- `GET /notifications`
-- `POST /notifications`
-- `POST /notifications/test` — gửi ngay notification kiểm tra qua kênh `LOG`
-- `DELETE /notifications/:id` — đánh dấu `CANCELED`
+### Requirements
+* **Python** `>= 3.11`
 
-Ví dụ tạo notification:
-
-```json
-{
-  "targetType": "TASK",
-  "targetId": "task-id",
-  "channel": "LOG",
-  "message": "Công việc sắp đến hạn",
-  "scheduledAt": "2026-10-31T10:00:00Z"
-}
+### 1. Install Dependencies
+```bash
+pip install -r requirements.txt
+# Or using the ultra-fast uv package manager:
+uv pip install -r requirements.txt
 ```
 
-## CI/CD
+### 2. Start the Server
+```bash
+# Option A: Run directly with Python
+python main.py
 
-Tạo pull request thủ công từ branch làm việc vào `dev`. CI kiểm tra merge result; mọi pull request hợp lệ trong cùng repository và có base là `dev` sẽ được squash-merge sau khi CI thành công. Thay đổi chỉ liên quan tài liệu sẽ bỏ qua job format, lint, test và compile tốn tài nguyên.
+# Option B: Run via Uvicorn with hot-reload
+python -m uvicorn main:app --reload --port 8000
 
-Mỗi merge vào `dev` tạo image immutable `dev-<commit>`. Production không dùng branch `main`: chạy workflow **Release production** từ `dev` với semantic version mới, ví dụ `v1.2.3`. Workflow kiểm tra source, chờ duyệt trong GitHub Environment `prod`, promote đúng development image sang version đó, quét lại bằng Trivy và tạo GitHub Release immutable. SonarQube được tự động phân tích bên ngoài GitHub Actions.
+# Option C: Run with uv
+uv run uvicorn main:app --reload --port 8000
+```
 
-Cấu hình các GitHub organization/repository settings:
+The service will listen on `http://localhost:8000`.
 
-- Đặt `dev` làm default branch; bắt buộc các check của `CI` pass và branch phải up-to-date trước khi merge.
-- Bật repository auto-merge.
-- Cho phép GitHub Actions workflow có quyền read/write để job auto-merge cập nhật pull request.
-- Variable `AWS_BUILD_ROLE_ARN`: Terraform output `github_build_role_arn` của shared stack.
-- Variable `AWS_REGION`: `ap-southeast-2`.
-- Bảo vệ GitHub Environment `prod` bằng required reviewers.
+---
+
+## 📡 API Endpoints
+
+| Method | Endpoint | Description | Sample Request Body |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/health` | Health and provider status probe for Backend / Kubernetes | *None* |
+| `POST` | `/notifications` | Dispatches task/event reminders to Telegram | `{"message": "Sprint planning meeting", "scheduledAt": "2026-11-08T09:00:00Z"}` |
+| `POST` | `/notifications/test` | Sends an immediate test alert to Telegram | `{"message": "TikTo test notification"}` |
+| `GET` | `/notifications` | Retrieves recently processed notifications | *None* |
+| `DELETE` | `/notifications/{id}` | Cancels a notification by ID | *None* |
+
+---
+
+## 🧪 Testing
+
+```bash
+# Run unit tests with coverage
+python -m unittest discover --start-directory test --verbose
+```
+
+---
+
+## 🐳 Docker Deployment
+
+```bash
+# 1. Build Docker image
+docker build -t tikto-notification .
+
+# 2. Run container with Telegram credentials
+docker run -p 8000:8000 \
+  -e TELEGRAM_BOT_TOKEN="your_token" \
+  -e TELEGRAM_CHAT_ID="your_chat_id" \
+  tikto-notification
+```

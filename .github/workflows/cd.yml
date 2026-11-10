@@ -1,23 +1,14 @@
-name: Deploy development
+name: Deploy Dev
 on:
   push:
-    branches: [dev, "feat/**"]
-  workflow_dispatch:
+    branches: [dev]
 
 permissions:
   contents: read
   packages: write
 
-concurrency:
-  group: gitops-dev
-  cancel-in-progress: false
-
 jobs:
-  quality:
-    uses: tikto-calender/reusable-workflow/.github/workflows/ci-python.yml@main
-
-  publish:
-    needs: quality
+  deploy:
     uses: tikto-calender/reusable-workflow/.github/workflows/cd-dev.yml@main
     with:
       component: notification
