@@ -35,7 +35,7 @@ def load_env() -> None:
 
 load_env()
 
-SERVICE_VERSION = "1.2.0"
+SERVICE_VERSION = "1.2.1"
 
 NOTIFICATIONS: dict[str, dict] = {}
 NOTIFICATIONS_LOCK = Lock()
