@@ -24,4 +24,4 @@ jobs:
       version: ${{ inputs.version }}
       gitops-repository: ${{ vars.GITOPS_REPOSITORY || 'tikto-calender/manifest' }}
     secrets:
-      MANIFEST_READ_TOKEN: ${{ secrets.MANIFEST_READ_TOKEN }}
+      MANIFEST_READ_TOKEN: ${{ secrets.MANIFEST_READ_TOKEN || secrets.GITOPS_TOKEN }}
