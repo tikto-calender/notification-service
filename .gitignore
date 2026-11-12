@@ -3,4 +3,4 @@ __pycache__/
 coverage.xml
 .ruff_cache/
 .venv/
-
+.env
