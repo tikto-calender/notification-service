@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   finalize:
-    uses: tikto-calender/reusable-workflow/.github/workflows/finalize-release.yml@a86d87a127e64901a8a2800f4362a95d9d76654b
+    uses: tikto-calender/reusable-workflow/.github/workflows/finalize-release.yml@main
     with:
       component: notification
       version: ${{ inputs.version }}
