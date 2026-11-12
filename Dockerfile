@@ -8,7 +8,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 COPY main.py ./
 
-RUN useradd --create-home --uid 10001 appuser
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/* \
+    && python -m pip uninstall --yes setuptools wheel pip \
+    && useradd --create-home --uid 10001 appuser
+
 USER appuser
 
 EXPOSE 8000

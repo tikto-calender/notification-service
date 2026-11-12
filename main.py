@@ -12,7 +12,7 @@ from uuid import uuid4
 
 NOTIFICATIONS: dict[str, dict] = {}
 NOTIFICATIONS_LOCK = Lock()
-SERVICE_VERSION = "1.1.0"
+SERVICE_VERSION = "2.0.6"
 
 
 def clean(value: object, maximum: int = 500) -> str:
@@ -78,13 +78,33 @@ class NotificationHandler(BaseHTTPRequestHandler):
         self._send_json(HTTPStatus.NOT_FOUND, {"error": "Route not found."})
 
     def do_POST(self) -> None:  # noqa: N802
-        if self.path != "/notifications":
+        if self.path not in {"/notifications", "/notifications/test"}:
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "Route not found."})
             return
 
         try:
             body = self._read_json()
             message = clean(body.get("message"), 500)
+            if self.path == "/notifications/test":
+                now = datetime.now(UTC).isoformat()
+                notification = {
+                    "id": str(uuid4()),
+                    "targetType": "SYSTEM",
+                    "targetId": "manual-test",
+                    "channel": "LOG",
+                    "message": message or "TikTo test notification",
+                    "scheduledAt": now,
+                    "status": "SENT",
+                    "sentAt": now,
+                    "createdAt": now,
+                    "updatedAt": now,
+                }
+                with NOTIFICATIONS_LOCK:
+                    NOTIFICATIONS[notification["id"]] = notification
+                print(f"[notification-service] sent test notification id={notification['id']}")
+                self._send_json(HTTPStatus.CREATED, {"data": notification})
+                return
+
             scheduled_at = clean(body.get("scheduledAt"), 40)
             if not message or not scheduled_at:
                 raise ValueError("message and scheduledAt are required.")
